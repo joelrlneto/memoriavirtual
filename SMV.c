@@ -4,7 +4,7 @@
 #include "time.h"
 
 struct Page {
-	char *address;
+	char address[9];
 	Page *next;	
 };
 
@@ -55,24 +55,18 @@ int main(int argc, char *argv[]){
 	if(strlen(filePath) > 0){
 		file = fopen(filePath, "rt");
 		while(fgets(line, 20, file) != NULL){
-			operations++;
-			char addr[9];
-			strncpy(addr, line, 8);
-			addr[8] = '\0';
 			if(line[9] == 'W' || line[9] == 'w'){
 				Page *current = (Page*)malloc(sizeof(Page));
-				current->address = addr;
+				strncpy(current->address, line, 8);
 				current->next = NULL;
 				if(usedPages < numPages){
 					if(usedPages==0){
 						first = current;
 						last = first;
-						printf("First: %s\n", first->address);
 					}
 					else {
 						last->next = current;
 						last = current;
-						printf("New head: %s\n", first->address);
 					}			
 					usedPages++;
 				}
@@ -103,6 +97,8 @@ int main(int argc, char *argv[]){
 		tmp = tmp->next;
 	}
 	
+	printf("\n\nHead: %s\nTail: %s\n\n", first->address, last->address);
+	
 	printf("Executando o simulador...\n");
 	printf("Tamanho da memoria: %iKB\n", memSize);
 	printf("Tamanho das paginas: %iKB\n", pageSize);
@@ -114,7 +110,7 @@ int main(int argc, char *argv[]){
 	printf("Page hits: %i\n", hits);
 	printf("Page misses: %i\n", misses);
 	printf("Numero de writebacks: %i\n", writebacks);
-	printf("Taxa de page fault: %f \n", faults/operations*100);
+	printf("Taxa de page fault: %f \n", faults/writes*100);
 	
 	free(first);
 	free(last);
@@ -123,5 +119,5 @@ int main(int argc, char *argv[]){
 }
 
 
-//g++ -Wall -o E:\BTI\IOAC\SMV\virtual.exe e:\BTI\IOAC\SMV\SMV.c
-//E:\BTI\IOAC\SMV\virtual lru E:\BTI\IOAC\SMV\arquivo.log 32 128
+//g++ -Wall -o E:\BTI\IOAC\memoriavirtual\virtual.exe e:\BTI\IOAC\memoriavirtual\SMV.c
+//E:\BTI\IOAC\memoriavirtual\virtual lru E:\BTI\IOAC\memoriavirtual\arquivo.log 32 128
