@@ -23,8 +23,26 @@ int Random(Page *pages, int numPages){
 	return 0;
 }
 
+bool Find(Page *head, char value[9]){
+	Page *tmp = head;
+	while(tmp != NULL){
+		if(strcmp(tmp->address, value)==0)
+			return true;
+		tmp = tmp->next;
+	}
+	return false;
+}
+
+void FreeMemory(Page *head){
+	Page *tmp = head;
+	while(tmp != NULL){
+		free(tmp);
+		tmp = tmp->next;
+	}
+}
+
 int main(int argc, char *argv[]){
-	char *alg, *filePath, line[20];
+	char *alg, *filePath, line[20], value[9];
 	int pageSize, memSize, numPages, operations=0, reads=0, writes=0, hits=0, misses=0, writebacks=0, usedPages=0;
 	float faults=0;
 	FILE *file;
@@ -58,6 +76,7 @@ int main(int argc, char *argv[]){
 			if(line[9] == 'W' || line[9] == 'w'){
 				Page *current = (Page*)malloc(sizeof(Page));
 				strncpy(current->address, line, 8);
+				current->address[8] = '\0';
 				current->next = NULL;
 				if(usedPages < numPages){
 					if(usedPages==0){
@@ -77,7 +96,14 @@ int main(int argc, char *argv[]){
 				writes++;
 			}
 			else if(line[9] == 'R' || line[9] == 'r'){
-				//printf("Leitura\n");
+				strncpy(value, line, 8);
+				value[8] = '\0';
+				if(Find(first, value)){
+					hits++;	
+				}
+				else{
+					misses++;
+				}
 				reads++;
 			}
 			else{
@@ -97,9 +123,7 @@ int main(int argc, char *argv[]){
 		tmp = tmp->next;
 	}
 	
-	printf("\n\nHead: %s\nTail: %s\n\n", first->address, last->address);
-	
-	printf("Executando o simulador...\n");
+	printf("\nExecutando o simulador...\n");
 	printf("Tamanho da memoria: %iKB\n", memSize);
 	printf("Tamanho das paginas: %iKB\n", pageSize);
 	printf("Tecnica de reposicao: %s\n", alg);
@@ -112,9 +136,8 @@ int main(int argc, char *argv[]){
 	printf("Numero de writebacks: %i\n", writebacks);
 	printf("Taxa de page fault: %f \n", faults/writes*100);
 	
-	free(first);
-	free(last);
-	
+	FreeMemory(first);
+		
 	return 0;
 }
 
