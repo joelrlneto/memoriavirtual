@@ -8,46 +8,113 @@ struct Page {
 	Page *next;	
 };
 
-//Retorna o índice da página menos recentemente usada
-int LRU(Page *pages, int numPages){
-	return 0;
+char *alg, *filePath, line[20], tmpAddress[9];
+int pageSize, memSize, numPages, operations=0, reads=0, writes=0, hits=0, misses=0, writebacks=0, usedPages=0;
+float faults=0;
+FILE *file;
+Page *first, *last;
+
+void AddNewPage(char value[9]){
+	Page *current = (Page*)malloc(sizeof(Page));
+	strcpy(current->address, value);
+	current->next = NULL;
+	
+	if(usedPages == 0){
+		first = current;
+		last = first;
+	}
+	else {
+		last->next = current;
+		last = current;
+	}
+	
+	if(usedPages < numPages)
+		usedPages++;
+	
+	writes++;
 }
 
-//Retorna o índice da primeira página usada
-int FIFO(Page *pages, int numPages){
-	return 0;
+void LRU(char value[9]){
+	AddNewPage(value);
+	if(usedPages == numPages)
+		first = first->next;
 }
 
-//Retorna o índice de uma página aleatória
-int Random(Page *pages, int numPages){
-	return 0;
+void FIFO(char value[9]){
+	AddNewPage(value);
+	if(usedPages == numPages)
+		first = first->next;
 }
 
-bool Find(Page *head, char value[9]){
-	Page *tmp = head;
+void Random(char value[9]){
+	writes++;
+	srand(time(NULL));	
+	int index = rand() % usedPages;
+	Page *tmp = first;
+	for(int i = 0; i < index; i++){
+		tmp = tmp->next;
+	}
+	strcpy(tmp->address, value);
+}
+
+bool Find(char value[9]){
+	Page *tmp = first, *prev = NULL;
 	while(tmp != NULL){
-		if(strcmp(tmp->address, value)==0)
+		if(strcmp(tmp->address, value)==0){
+			if(strcmp(alg, "lru") == 0){
+				if(prev != NULL){
+					if(tmp->next != NULL)
+						prev->next = tmp->next;							
+				}
+				else {
+					first = first->next;
+				}
+				last->next = tmp;
+				last = tmp;
+				tmp->next = NULL;
+			}
+
 			return true;
+		}
+		prev = tmp;	
 		tmp = tmp->next;
 	}
 	return false;
 }
 
-void FreeMemory(Page *head){
-	Page *tmp = head;
+void ReplacePage(char value[9]){
+	if(strcmp(alg, "lru") == 0){
+		LRU(value);
+	}
+	else if(strcmp(alg, "random") == 0){
+		Random(value);
+	}
+	else if(strcmp(alg, "fifo") == 0){
+		FIFO(value);
+	}
+	writebacks++;
+}
+
+void WriteAddress(char value[9]){
+	if(usedPages < numPages){
+		AddNewPage(tmpAddress);
+	}
+	else{
+		faults++;
+		ReplacePage(tmpAddress);
+	}
+}
+
+void FreeMemory(){
+	Page *tmp = first;
 	while(tmp != NULL){
 		free(tmp);
 		tmp = tmp->next;
 	}
+	fclose(file);
 }
 
 int main(int argc, char *argv[]){
-	char *alg, *filePath, line[20], value[9];
-	int pageSize, memSize, numPages, operations=0, reads=0, writes=0, hits=0, misses=0, writebacks=0, usedPages=0;
-	float faults=0;
-	FILE *file;
-	Page *first, *last;
-	
 	alg = argv[1];
 	filePath = argv[2];
 	pageSize = atoi(argv[3]);
@@ -71,38 +138,21 @@ int main(int argc, char *argv[]){
 	numPages = memSize/pageSize;
 		
 	if(strlen(filePath) > 0){
-		file = fopen(filePath, "rt");
+		file = fopen(filePath, "r");
 		while(fgets(line, 20, file) != NULL){
+			operations++;
+			strncpy(tmpAddress, line, 8);
+			tmpAddress[8] = '\0';
 			if(line[9] == 'W' || line[9] == 'w'){
-				Page *current = (Page*)malloc(sizeof(Page));
-				strncpy(current->address, line, 8);
-				current->address[8] = '\0';
-				current->next = NULL;
-				if(usedPages < numPages){
-					if(usedPages==0){
-						first = current;
-						last = first;
-					}
-					else {
-						last->next = current;
-						last = current;
-					}			
-					usedPages++;
-				}
-				else{
-					faults++;
-					//Algoritmo de substituição
-				}
-				writes++;
+				WriteAddress(tmpAddress);
 			}
-			else if(line[9] == 'R' || line[9] == 'r'){
-				strncpy(value, line, 8);
-				value[8] = '\0';
-				if(Find(first, value)){
+			else if(line[9] == 'R' || line[9] == 'r'){				
+				if(Find(tmpAddress)){
 					hits++;	
 				}
 				else{
 					misses++;
+					WriteAddress(tmpAddress);
 				}
 				reads++;
 			}
@@ -117,12 +167,6 @@ int main(int argc, char *argv[]){
 		return 0;
 	}
 	
-	Page *tmp = first;
-	while(tmp != NULL){
-		printf("[%s] -> ", tmp->address);
-		tmp = tmp->next;
-	}
-	
 	printf("\nExecutando o simulador...\n");
 	printf("Tamanho da memoria: %iKB\n", memSize);
 	printf("Tamanho das paginas: %iKB\n", pageSize);
@@ -134,13 +178,9 @@ int main(int argc, char *argv[]){
 	printf("Page hits: %i\n", hits);
 	printf("Page misses: %i\n", misses);
 	printf("Numero de writebacks: %i\n", writebacks);
-	printf("Taxa de page fault: %f \n", faults/writes*100);
+	printf("Taxa de page fault: %f%% \n", faults/writes*100);
 	
-	FreeMemory(first);
+	FreeMemory();
 		
 	return 0;
 }
-
-
-//g++ -Wall -o E:\BTI\IOAC\memoriavirtual\virtual.exe e:\BTI\IOAC\memoriavirtual\SMV.c
-//E:\BTI\IOAC\memoriavirtual\virtual lru E:\BTI\IOAC\memoriavirtual\arquivo.log 32 128
